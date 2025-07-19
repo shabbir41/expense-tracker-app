@@ -17,15 +17,30 @@ CORS(app)
 
 @app.route('/api/expense', methods=['POST'])
 def log_expense():
-    data = request.get_json()
+    auth_header = request.headers.get('Authorization')
 
-    # Validate required fields
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return jsonify({'error': 'Missing or invalid token'}), 401
+
+    id_token = auth_header.split(' ')[1]
+
+    try:
+        decoded_token = firebase_auth.verify_id_token(id_token)
+        uid = decoded_token['uid']
+        user_email = decoded_token.get('email', 'unknown')
+    except Exception as e:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    data = request.get_json()
     required_fields = ['date', 'amount', 'category']
+
     if not all(field in data for field in required_fields):
         return jsonify({'error': 'Missing required fields'}), 400
 
-    # Convert to Firestore format
+    # Include UID or email if you want per-user tracking
     expense = {
+        'user': user_email,
+        'uid': uid,
         'date': data['date'],
         'amount': data['amount'],
         'category': data['category'],
@@ -33,9 +48,9 @@ def log_expense():
         'timestamp': datetime.utcnow()
     }
 
-    # For now we save under a common collection. Later, per-user.
     db.collection('expenses').add(expense)
     return jsonify({'message': 'Expense saved successfully'}), 200
+
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
