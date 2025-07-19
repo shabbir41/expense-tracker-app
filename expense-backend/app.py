@@ -48,7 +48,8 @@ def log_expense():
         'timestamp': datetime.utcnow()
     }
 
-    db.collection('expenses').add(expense)
+    # Save under user's expenses collection
+    db.collection('users').document(uid).collection('expenses').add(expense)
     return jsonify({'message': 'Expense saved successfully'}), 200
 
 

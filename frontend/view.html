@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html type="module">
+<head>
+  <title>My Expenses</title>
+  <style>
+    body { font-family: Arial; max-width: 900px; margin: 40px auto; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+    th { background-color: #f2f2f2; }
+  </style>
+</head>
+<body>
+  <h1>My Expense History</h1>
+  <button onclick="logout()">Logout</button>
+  <table id="expense-table">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Amount</th>
+        <th>Category</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <p id="status"></p>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCq_GpPghLmJacsMTFpMAw-g-VOo1WGIq4",
+      authDomain: "expensetrackerapp-552bb.firebaseapp.com",
+      projectId: "expensetrackerapp-552bb",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const tableBody = document.querySelector("#expense-table tbody");
+    const status = document.getElementById("status");
+
+    function logout() {
+      signOut(auth).then(() => {
+        window.location.href = "index.html";
+      });
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        alert("Please log in first.");
+        window.location.href = "index.html";
+        return;
+      }
+
+      const uid = user.uid;
+      const expensesRef = collection(db, "users", uid, "expenses");
+
+      try {
+        const snapshot = await getDocs(expensesRef);
+        if (snapshot.empty) {
+          status.textContent = "No expenses found.";
+          return;
+        }
+
+        snapshot.forEach(doc => {
+          const { date, amount, category, notes } = doc.data();
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${date}</td>
+            <td>$${amount.toFixed(2)}</td>
+            <td>${category}</td>
+            <td>${notes}</td>
+          `;
+          tableBody.appendChild(row);
+        });
+      } catch (err) {
+        console.error(err);
+        status.textContent = "Failed to load expenses.";
+      }
+    });
+  </script>
+</body>
+</html>
